@@ -1,0 +1,58 @@
+<!-- ================================================================
+     TAMIL DICTIONARY — BLOGGER EMBED SNIPPET
+     Copy this into your Blogger page HTML editor
+     ================================================================ -->
+
+<!-- Step 1: Font loading (add to blog <head> if not already there) -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+<!-- Step 2: Dictionary container -->
+<div id="tamil-dictionary-root" style="min-height: 400px; width: 100%;"></div>
+
+<!-- Step 3: Configuration (update API URL to your server) -->
+<script>
+  window.TamilDictConfig = {
+    apiBase: "https://YOUR-API-SERVER.com",   // ← Update this
+    theme: "auto",    // "light" | "dark" | "auto"
+    lang: "ta"
+  };
+</script>
+
+<!-- Step 4: Load the widget bundle -->
+<script src="https://YOUR-CDN/tamil-dict-widget.js" defer></script>
+
+<!--
+================================================================
+SELF-HOSTED OPTION (iframe)
+If you prefer an iframe instead of the JS widget:
+================================================================
+
+<iframe
+  src="https://YOUR-FRONTEND-URL"
+  style="width: 100%; min-height: 700px; border: none; border-radius: 12px;"
+  title="Tamil Dictionary — தமிழ் அகராதி"
+  loading="lazy"
+></iframe>
+
+================================================================
+LOCAL DEVELOPMENT
+Run in your Tamil Dictionary folder:
+
+  Backend:
+  cd backend
+  pip install -r requirements.txt
+  uvicorn app.main:app --reload
+
+  Frontend:
+  cd frontend
+  npm install
+  npm run dev
+  → Open http://localhost:5173
+
+  OR with Docker (full stack):
+  docker-compose up
+
+================================================================
+-->
