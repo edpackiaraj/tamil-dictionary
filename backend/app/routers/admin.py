@@ -216,10 +216,14 @@ async def _ingest_csv_task():
                         })
                     
                     if len(batch_words) >= 250:
-                        await conn.execute(insert(Word).values(batch_words).on_conflict_do_nothing(index_elements=["id"]))
-                        await conn.execute(insert(Sense).values(batch_senses).on_conflict_do_nothing(index_elements=["id"]))
+                        word_stmt = insert(Word).on_conflict_do_nothing(index_elements=["id"])
+                        sense_stmt = insert(Sense).on_conflict_do_nothing(index_elements=["id"])
+                        def_stmt = insert(Definition).on_conflict_do_nothing(index_elements=["sense_id", "language"])
+                        
+                        await conn.execute(word_stmt, batch_words)
+                        await conn.execute(sense_stmt, batch_senses)
                         if batch_defs:
-                            await conn.execute(insert(Definition).values(batch_defs).on_conflict_do_nothing(index_elements=["sense_id", "language"]))
+                            await conn.execute(def_stmt, batch_defs)
                         await conn.commit()
                         words_inserted += len(batch_words)
                         ingestion_state.total_inserted = words_inserted
@@ -228,10 +232,14 @@ async def _ingest_csv_task():
                         await asyncio.sleep(0.05)
                 
                 if batch_words:
-                    await conn.execute(insert(Word).values(batch_words).on_conflict_do_nothing(index_elements=["id"]))
-                    await conn.execute(insert(Sense).values(batch_senses).on_conflict_do_nothing(index_elements=["id"]))
+                    word_stmt = insert(Word).on_conflict_do_nothing(index_elements=["id"])
+                    sense_stmt = insert(Sense).on_conflict_do_nothing(index_elements=["id"])
+                    def_stmt = insert(Definition).on_conflict_do_nothing(index_elements=["sense_id", "language"])
+                    
+                    await conn.execute(word_stmt, batch_words)
+                    await conn.execute(sense_stmt, batch_senses)
                     if batch_defs:
-                        await conn.execute(insert(Definition).values(batch_defs).on_conflict_do_nothing(index_elements=["sense_id", "language"]))
+                        await conn.execute(def_stmt, batch_defs)
                     await conn.commit()
                     words_inserted += len(batch_words)
                     ingestion_state.total_inserted = words_inserted
