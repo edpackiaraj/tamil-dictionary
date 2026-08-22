@@ -126,6 +126,7 @@ async def get_reports(db: AsyncSession = Depends(get_db)):
 async def _ingest_csv_task():
     logger.info("Starting CSV ingestion background task...")
     import os
+    import datetime
     from app.database import async_session_maker
     from sqlalchemy.dialects.postgresql import insert
     
@@ -146,6 +147,7 @@ async def _ingest_csv_task():
                 for row in reader:
                     word_id = f"TA-EXT-{uuid.uuid5(uuid.NAMESPACE_URL, row['word'])}"
                     sense_id = f"SENSE-{word_id}"
+                    now = datetime.datetime.utcnow()
                     
                     batch_words.append({
                         "id": word_id,
@@ -154,14 +156,18 @@ async def _ingest_csv_task():
                         "lexical_status": "published",
                         "is_compound": False,
                         "is_proper_noun": False,
-                        "revision": 1
+                        "revision": 1,
+                        "created_at": now,
+                        "updated_at": now
                     })
                     
                     batch_senses.append({
                         "id": sense_id,
                         "word_id": word_id,
                         "sense_number": 1,
-                        "status": "published"
+                        "status": "published",
+                        "created_at": now,
+                        "updated_at": now
                     })
                     
                     if row.get("meaning_english"):
