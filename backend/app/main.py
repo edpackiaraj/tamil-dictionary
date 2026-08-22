@@ -311,6 +311,9 @@ app.include_router(admin.router,      prefix="/admin",    tags=["Admin"])
 app.include_router(auth.router,       prefix="/api/auth", tags=["Auth"])
 app.include_router(morphology.router, prefix="/api",      tags=["Morphology"])
 
+from app.routers import debug
+app.include_router(debug.router, prefix="/debug", tags=["Debug"])
+
 
 @app.get("/", tags=["Health"])
 async def root():
