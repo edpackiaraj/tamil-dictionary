@@ -1,4 +1,4 @@
-const BASE = (window as any).__TAMIL_DICT_API__ || 'http://localhost:8000'
+const BASE = import.meta.env.VITE_API_BASE || 'https://tamil-dictionary-production.up.railway.app'
 
 export async function apiSearch(q: string): Promise<any> {
   const r = await fetch(`${BASE}/api/search?q=${encodeURIComponent(q)}&limit=30`)
