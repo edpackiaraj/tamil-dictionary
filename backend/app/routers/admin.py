@@ -238,8 +238,10 @@ async def _ingest_csv_task():
         logger.info(f"Ingestion complete! Inserted {words_inserted} words.")
         ingestion_state.completed = True
     except Exception as e:
-        logger.error(f"Ingestion failed: {e}")
-        ingestion_state.error = str(e)
+        import traceback
+        err_str = f"{repr(e)}\n{traceback.format_exc()}"
+        logger.error(f"Ingestion failed: {err_str}")
+        ingestion_state.error = err_str
     finally:
         ingestion_state.is_running = False
 
