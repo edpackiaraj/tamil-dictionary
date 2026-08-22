@@ -123,16 +123,40 @@ async def get_reports(db: AsyncSession = Depends(get_db)):
     ]
 
 
+class IngestionState(BaseModel):
+    is_running: bool = False
+    total_processed: int = 0
+    total_inserted: int = 0
+    error: Optional[str] = None
+    completed: bool = False
+
+ingestion_state = IngestionState()
+
+
 async def _ingest_csv_task():
     logger.info("Starting CSV ingestion background task...")
     import os
     import datetime
-    from app.database import async_session_maker
+    from app.database import AsyncSessionLocal
     from sqlalchemy.dialects.postgresql import insert
+    
+    global ingestion_state
+    if ingestion_state.is_running:
+        logger.warning("Ingestion is already running.")
+        return
+
+    ingestion_state.is_running = True
+    ingestion_state.total_processed = 0
+    ingestion_state.total_inserted = 0
+    ingestion_state.error = None
+    ingestion_state.completed = False
     
     csv_path = os.path.join("data", "tamil_dictionary_full.csv.gz")
     if not os.path.exists(csv_path):
-        logger.error(f"CSV not found at {csv_path}")
+        err = f"CSV not found at {csv_path}"
+        logger.error(err)
+        ingestion_state.error = err
+        ingestion_state.is_running = False
         return
 
     try:
@@ -142,9 +166,11 @@ async def _ingest_csv_task():
             batch_senses = []
             batch_defs = []
             words_inserted = 0
+            words_processed = 0
             
-            async with async_session_maker() as session:
+            async with AsyncSessionLocal() as session:
                 for row in reader:
+                    words_processed += 1
                     word_id = f"TA-EXT-{uuid.uuid5(uuid.NAMESPACE_URL, row['word'])}"
                     sense_id = f"SENSE-{word_id}"
                     now = datetime.datetime.utcnow()
@@ -193,8 +219,10 @@ async def _ingest_csv_task():
                             await session.execute(insert(Definition).values(batch_defs).on_conflict_do_nothing(index_elements=["id"]))
                         await session.commit()
                         words_inserted += len(batch_words)
+                        ingestion_state.total_inserted = words_inserted
+                        ingestion_state.total_processed = words_processed
                         batch_words, batch_senses, batch_defs = [], [], []
-                        await asyncio.sleep(0.1)
+                        await asyncio.sleep(0.05)
                 
                 if batch_words:
                     await session.execute(insert(Word).values(batch_words).on_conflict_do_nothing(index_elements=["id"]))
@@ -203,13 +231,26 @@ async def _ingest_csv_task():
                         await session.execute(insert(Definition).values(batch_defs).on_conflict_do_nothing(index_elements=["id"]))
                     await session.commit()
                     words_inserted += len(batch_words)
+                    ingestion_state.total_inserted = words_inserted
+                    ingestion_state.total_processed = words_processed
                     
         logger.info(f"Ingestion complete! Inserted {words_inserted} words.")
+        ingestion_state.completed = True
     except Exception as e:
         logger.error(f"Ingestion failed: {e}")
+        ingestion_state.error = str(e)
+    finally:
+        ingestion_state.is_running = False
 
 
 @router.post("/ingest")
 async def ingest_dictionary(background_tasks: BackgroundTasks):
+    if ingestion_state.is_running:
+        return {"status": "already_running", "message": "An ingestion is currently in progress."}
     background_tasks.add_task(_ingest_csv_task)
-    return {"status": "ingestion_started", "message": "Check server logs for progress."}
+    return {"status": "ingestion_started", "message": "Check server logs or /admin/ingest/status for progress."}
+
+
+@router.get("/ingest/status")
+async def get_ingest_status():
+    return ingestion_state.dict()
