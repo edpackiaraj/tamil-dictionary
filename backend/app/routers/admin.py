@@ -250,6 +250,13 @@ async def _ingest_csv_task():
 async def ingest_dictionary(background_tasks: BackgroundTasks):
     if ingestion_state.is_running:
         return {"status": "already_running", "message": "An ingestion is currently in progress."}
+    
+    ingestion_state.is_running = True
+    ingestion_state.error = None
+    ingestion_state.total_processed = 0
+    ingestion_state.total_inserted = 0
+    ingestion_state.completed = False
+    
     background_tasks.add_task(_ingest_csv_task)
     return {"status": "ingestion_started", "message": "Check server logs or /admin/ingest/status for progress."}
 
