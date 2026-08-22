@@ -88,6 +88,8 @@ class Definition(Base):
     definition: Mapped[str] = mapped_column(Text)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
+    __table_args__ = (UniqueConstraint("sense_id", "language"),)
+
     sense: Mapped["Sense"] = relationship("Sense", back_populates="definitions")
 
 
