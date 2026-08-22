@@ -8,7 +8,15 @@ from sqlalchemy import select, func
 from pydantic import BaseModel
 from typing import Optional
 from app.database import get_db
-from app.models import Contribution, Word, ZeroResultSearch, WordRequest, Report
+from app.models import Contribution, Word, ZeroResultSearch, WordRequest, Report, Sense, Definition
+from fastapi import BackgroundTasks
+import gzip
+import csv
+import io
+import asyncio
+import uuid
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -113,3 +121,89 @@ async def get_reports(db: AsyncSession = Depends(get_db)):
          "reason": i.reason, "created_at": i.created_at.isoformat()}
         for i in items
     ]
+
+
+async def _ingest_csv_task():
+    logger.info("Starting CSV ingestion background task...")
+    import os
+    from app.database import async_session_maker
+    from sqlalchemy.dialects.postgresql import insert
+    
+    csv_path = os.path.join("data", "tamil_dictionary_full.csv.gz")
+    if not os.path.exists(csv_path):
+        logger.error(f"CSV not found at {csv_path}")
+        return
+
+    try:
+        with gzip.open(csv_path, "rt", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            batch_words = []
+            batch_senses = []
+            batch_defs = []
+            words_inserted = 0
+            
+            async with async_session_maker() as session:
+                for row in reader:
+                    word_id = f"TA-EXT-{uuid.uuid5(uuid.NAMESPACE_URL, row['word'])}"
+                    sense_id = f"SENSE-{word_id}"
+                    
+                    batch_words.append({
+                        "id": word_id,
+                        "headword": row["word"],
+                        "headword_normalized": row["word"],
+                        "lexical_status": "published",
+                        "is_compound": False,
+                        "is_proper_noun": False,
+                        "revision": 1
+                    })
+                    
+                    batch_senses.append({
+                        "id": sense_id,
+                        "word_id": word_id,
+                        "sense_number": 1,
+                        "status": "published"
+                    })
+                    
+                    if row.get("meaning_english"):
+                        batch_defs.append({
+                            "sense_id": sense_id,
+                            "language": "en",
+                            "definition": row["meaning_english"],
+                            "sort_order": 0
+                        })
+                        
+                    if row.get("meaning_tamil"):
+                        batch_defs.append({
+                            "sense_id": sense_id,
+                            "language": "ta",
+                            "definition": row["meaning_tamil"],
+                            "sort_order": 1
+                        })
+                    
+                    if len(batch_words) >= 5000:
+                        await session.execute(insert(Word).values(batch_words).on_conflict_do_nothing(index_elements=["id"]))
+                        await session.execute(insert(Sense).values(batch_senses).on_conflict_do_nothing(index_elements=["id"]))
+                        if batch_defs:
+                            await session.execute(insert(Definition).values(batch_defs).on_conflict_do_nothing(index_elements=["id"]))
+                        await session.commit()
+                        words_inserted += len(batch_words)
+                        batch_words, batch_senses, batch_defs = [], [], []
+                        await asyncio.sleep(0.1)
+                
+                if batch_words:
+                    await session.execute(insert(Word).values(batch_words).on_conflict_do_nothing(index_elements=["id"]))
+                    await session.execute(insert(Sense).values(batch_senses).on_conflict_do_nothing(index_elements=["id"]))
+                    if batch_defs:
+                        await session.execute(insert(Definition).values(batch_defs).on_conflict_do_nothing(index_elements=["id"]))
+                    await session.commit()
+                    words_inserted += len(batch_words)
+                    
+        logger.info(f"Ingestion complete! Inserted {words_inserted} words.")
+    except Exception as e:
+        logger.error(f"Ingestion failed: {e}")
+
+
+@router.post("/ingest")
+async def ingest_dictionary(background_tasks: BackgroundTasks):
+    background_tasks.add_task(_ingest_csv_task)
+    return {"status": "ingestion_started", "message": "Check server logs for progress."}

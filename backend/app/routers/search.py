@@ -1,17 +1,15 @@
 """
-Search router — handles Tamil, English, and transliteration search
+Search router — Tamil, English, and transliteration search (no pg_trgm required)
 """
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_, func, text
+from sqlalchemy import select, or_, func
 from typing import Optional
 from app.database import get_db
 from app.models import Word, Sense, Definition, MorphologicalForm, ZeroResultSearch
 from app.schemas import SearchResultItem, SearchResponse
 
 router = APIRouter()
-
-TAMIL_RANGE = "\u0B80-\u0BFF"
 
 
 def is_tamil(q: str) -> bool:
@@ -20,8 +18,8 @@ def is_tamil(q: str) -> bool:
 
 @router.get("/search", response_model=SearchResponse)
 async def search(
-    q: str = Query(..., min_length=1, max_length=200, description="Search query"),
-    lang: Optional[str] = Query(None, description="Hint: 'ta', 'en', 'transliteration'"),
+    q: str = Query(..., min_length=1, max_length=200),
+    lang: Optional[str] = Query(None),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
@@ -31,13 +29,9 @@ async def search(
 
     if is_tamil(q):
         results = await _search_tamil(db, q, limit, offset)
-    elif lang == "transliteration" or not is_tamil(q) and len(q) <= 30:
-        # try both transliteration and English
-        results = await _search_mixed(db, q, limit, offset)
     else:
-        results = await _search_english(db, q, limit, offset)
+        results = await _search_mixed(db, q, limit, offset)
 
-    # Track zero results
     if not results:
         await _track_zero_result(db, q)
 
@@ -45,9 +39,7 @@ async def search(
 
 
 async def _search_tamil(db: AsyncSession, q: str, limit: int, offset: int):
-    # 1. Exact match
-    # 2. Morphological form match
-    # 3. Trigram similarity
+    """Search by Tamil headword using ILIKE — no pg_trgm needed."""
     stmt = (
         select(Word)
         .where(
@@ -55,20 +47,21 @@ async def _search_tamil(db: AsyncSession, q: str, limit: int, offset: int):
             or_(
                 Word.headword == q,
                 Word.headword.ilike(f"{q}%"),
-                func.similarity(Word.headword, q) > 0.3,
+                Word.headword.ilike(f"%{q}%"),
             )
         )
         .order_by(
+            # Exact match first, then prefix, then contains
             (Word.headword == q).desc(),
-            func.similarity(Word.headword, q).desc(),
+            Word.headword,
         )
         .limit(limit)
         .offset(offset)
     )
     rows = (await db.execute(stmt)).scalars().all()
 
-    # Also search morphological forms
-    if len(rows) == 0:
+    # Fallback: morphological forms
+    if not rows:
         morph_stmt = (
             select(Word)
             .join(MorphologicalForm, MorphologicalForm.word_id == Word.id)
@@ -83,29 +76,8 @@ async def _search_tamil(db: AsyncSession, q: str, limit: int, offset: int):
     return [await _to_result_item(db, w) for w in rows]
 
 
-async def _search_english(db: AsyncSession, q: str, limit: int, offset: int):
-    stmt = (
-        select(Word)
-        .join(Sense, Sense.word_id == Word.id)
-        .join(Definition, Definition.sense_id == Sense.id)
-        .where(
-            Word.lexical_status == "published",
-            Definition.language == "en",
-            or_(
-                Definition.definition.ilike(f"%{q}%"),
-                func.similarity(Definition.definition, q) > 0.2,
-            )
-        )
-        .distinct()
-        .limit(limit)
-        .offset(offset)
-    )
-    rows = (await db.execute(stmt)).scalars().all()
-    return [await _to_result_item(db, w) for w in rows]
-
-
 async def _search_mixed(db: AsyncSession, q: str, limit: int, offset: int):
-    # Transliteration + English in one query
+    """Search by transliteration and English definition using ILIKE — no pg_trgm needed."""
     stmt = (
         select(Word)
         .outerjoin(Sense, Sense.word_id == Word.id)
@@ -114,12 +86,12 @@ async def _search_mixed(db: AsyncSession, q: str, limit: int, offset: int):
             Word.lexical_status == "published",
             or_(
                 Word.transliteration.ilike(f"{q}%"),
-                func.similarity(Word.transliteration, q) > 0.4,
+                Word.transliteration.ilike(f"%{q}%"),
                 Definition.definition.ilike(f"%{q}%"),
             )
         )
         .distinct()
-        .order_by(func.similarity(Word.transliteration, q).desc())
+        .order_by(Word.transliteration)
         .limit(limit)
         .offset(offset)
     )
@@ -128,7 +100,6 @@ async def _search_mixed(db: AsyncSession, q: str, limit: int, offset: int):
 
 
 async def _to_result_item(db: AsyncSession, word: Word) -> SearchResultItem:
-    # Get first English definition
     stmt = (
         select(Definition.definition)
         .join(Sense, Definition.sense_id == Sense.id)
@@ -147,8 +118,9 @@ async def _to_result_item(db: AsyncSession, word: Word) -> SearchResultItem:
     )
     ta_def = (await db.execute(stmt_ta)).scalar_one_or_none()
 
-    sense_count_stmt = select(func.count()).where(Sense.word_id == word.id)
-    sense_count = (await db.execute(sense_count_stmt)).scalar_one()
+    sense_count = (await db.execute(
+        select(func.count()).where(Sense.word_id == word.id)
+    )).scalar_one()
 
     return SearchResultItem(
         id=word.id,

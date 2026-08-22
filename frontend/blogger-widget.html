@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>தமிழ் அகராதி — Tamil Dictionary Widget</title>
+<style>
+  /* ── Google Fonts ── */
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+  :root {
+    --api: 'https://tamil-dictionary-production.up.railway.app';
+    --bg: #0f0e17;
+    --surface: #1a1827;
+    --surface2: #231f35;
+    --border: #2e2a45;
+    --accent: #7c3aed;
+    --accent2: #a78bfa;
+    --text1: #f0eeff;
+    --text2: #b0a8d9;
+    --text3: #6e67a0;
+    --gold: #f59e0b;
+    --radius: 12px;
+    --font-ta: 'Noto Sans Tamil', sans-serif;
+    --font-en: 'Inter', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font-en);
+    background: var(--bg);
+    color: var(--text1);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 16px;
+  }
+
+  #widget {
+    width: 100%;
+    max-width: 680px;
+    margin: 0 auto;
+  }
+
+  /* ── Header ── */
+  .dict-header {
+    text-align: center;
+    padding: 28px 0 20px;
+  }
+  .dict-header h1 {
+    font-family: var(--font-ta);
+    font-size: 2rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #a78bfa 0%, #60a5fa 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .dict-header p {
+    color: var(--text2);
+    font-size: 0.85rem;
+    margin-top: 4px;
+  }
+
+  /* ── Search Box ── */
+  .search-wrap { position: relative; margin-bottom: 8px; }
+  .search-input {
+    width: 100%;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 48px 14px 48px;
+    font-size: 1.1rem;
+    font-family: var(--font-ta);
+    color: var(--text1);
+    outline: none;
+    transition: border-color .2s;
+  }
+  .search-input:focus { border-color: var(--accent2); }
+  .search-input::placeholder { color: var(--text3); }
+  .search-icon {
+    position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
+    font-size: 1.1rem;
+  }
+  .search-clear {
+    position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; color: var(--text3); cursor: pointer;
+    font-size: 1rem; padding: 4px;
+  }
+  .search-clear:hover { color: var(--text1); }
+
+  /* ── Hint chips ── */
+  .search-hint {
+    display: flex; gap: 10px; font-size: 0.75rem; color: var(--text3);
+    margin-bottom: 12px; flex-wrap: wrap;
+  }
+
+  /* ── Dropdown ── */
+  .dropdown {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,.5);
+    margin-bottom: 12px;
+  }
+  .result-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    transition: background .15s;
+  }
+  .result-item:last-child { border-bottom: none; }
+  .result-item:hover { background: var(--surface2); }
+  .result-headword { font-family: var(--font-ta); font-size: 1.1rem; font-weight: 600; }
+  .result-translit { font-size: 0.8rem; color: var(--accent2); margin-top: 1px; }
+  .result-pos { font-size: 0.75rem; color: var(--text3); font-family: var(--font-ta); }
+  .result-def { font-size: 0.83rem; color: var(--text2); max-width: 55%; text-align: right; }
+
+  /* ── Quick words ── */
+  .quick-words {
+    display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+    margin: 24px 0 16px;
+  }
+  .chip {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 99px; padding: 6px 16px; font-size: 0.95rem;
+    font-family: var(--font-ta); color: var(--text2); cursor: pointer;
+    transition: all .15s;
+  }
+  .chip:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* ── Word detail card ── */
+  .word-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 12px;
+    animation: fadeIn .25s ease;
+  }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+
+  .word-card-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
+  .word-headword { font-family: var(--font-ta); font-size: 2rem; font-weight: 700; line-height: 1.2; }
+  .word-translit { font-size: 0.9rem; color: var(--accent2); margin-top: 4px; }
+  .word-pos { font-size: 0.8rem; color: var(--text3); font-family: var(--font-ta); margin-top: 4px; }
+  .back-btn {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 14px; color: var(--text2);
+    cursor: pointer; font-size: 0.85rem; transition: all .15s;
+  }
+  .back-btn:hover { color: var(--text1); border-color: var(--accent2); }
+
+  .sense-block { margin-bottom: 18px; padding-bottom: 18px; border-bottom: 1px solid var(--border); }
+  .sense-block:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+  .sense-num {
+    display: inline-block; background: var(--accent); color: #fff;
+    border-radius: 50%; width: 22px; height: 22px; text-align: center;
+    line-height: 22px; font-size: 0.75rem; font-weight: 700; margin-bottom: 10px;
+  }
+  .def-en { font-size: 1rem; color: var(--text1); margin-bottom: 4px; }
+  .def-ta { font-family: var(--font-ta); font-size: 0.9rem; color: var(--text2); }
+
+  .section-title {
+    font-size: 0.72rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--text3); margin: 12px 0 6px;
+  }
+  .pill-group { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pill {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 99px; padding: 3px 12px; font-size: 0.82rem;
+    font-family: var(--font-ta); color: var(--text2);
+  }
+  .example-block {
+    background: var(--surface2); border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0; padding: 10px 14px; margin-top: 6px;
+  }
+  .example-ta { font-family: var(--font-ta); font-size: 0.95rem; color: var(--text1); }
+  .example-en { font-size: 0.82rem; color: var(--text3); margin-top: 3px; }
+  .quotation-block {
+    background: var(--surface2); border-left: 3px solid var(--gold);
+    border-radius: 0 8px 8px 0; padding: 10px 14px; margin-top: 6px;
+    font-style: italic;
+  }
+  .quotation-ta { font-family: var(--font-ta); font-size: 0.95rem; color: var(--gold); }
+  .quotation-src { font-size: 0.75rem; color: var(--text3); margin-top: 4px; }
+
+  .morph-table { width: 100%; font-size: 0.85rem; border-collapse: collapse; margin-top: 6px; }
+  .morph-table td { padding: 5px 10px; border-bottom: 1px solid var(--border); }
+  .morph-table td:first-child { color: var(--text3); width: 40%; }
+  .morph-table td:last-child { font-family: var(--font-ta); color: var(--text1); font-weight: 600; }
+
+  /* ── Spinner ── */
+  .spinner {
+    display: inline-block; width: 20px; height: 20px;
+    border: 2px solid var(--border); border-top-color: var(--accent2);
+    border-radius: 50%; animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading { text-align: center; padding: 40px; color: var(--text3); }
+
+  /* ── Footer ── */
+  .dict-footer {
+    text-align: center; padding: 16px; font-size: 0.75rem; color: var(--text3);
+  }
+  .dict-footer a { color: var(--accent2); text-decoration: none; }
+</style>
+</head>
+<body>
+<div id="widget">
+  <div class="dict-header">
+    <h1>தமிழ் அகராதி</h1>
+    <p>Open Tamil Lexicon • Community Maintained</p>
+  </div>
+
+  <!-- Search -->
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input id="search-input" class="search-input"
+           type="text" placeholder="சொல் தேடுக… or type in English / transliteration"
+           autocomplete="off" spellcheck="false">
+    <button id="search-clear" class="search-clear" style="display:none">✕</button>
+  </div>
+  <div class="search-hint">
+    <span>🔤 Tamil script</span>
+    <span>🔡 English</span>
+    <span>🔀 Transliteration (anbu, kadal…)</span>
+  </div>
+
+  <!-- Dropdown results -->
+  <div id="dropdown" class="dropdown" style="display:none"></div>
+
+  <!-- Main content area -->
+  <div id="main-content">
+    <!-- Quick chips -->
+    <div class="quick-words" id="quick-words">
+      <div style="width:100%;text-align:center;color:var(--text3);font-size:.82rem;margin-bottom:6px">
+        Popular words / பிரபலமான சொற்கள்
+      </div>
+      <button class="chip" onclick="searchWord('அன்பு')">அன்பு</button>
+      <button class="chip" onclick="searchWord('கடல்')">கடல்</button>
+      <button class="chip" onclick="searchWord('தமிழ்')">தமிழ்</button>
+      <button class="chip" onclick="searchWord('அறம்')">அறம்</button>
+      <button class="chip" onclick="searchWord('பால்')">பால்</button>
+      <button class="chip" onclick="searchWord('வீடு')">வீடு</button>
+    </div>
+  </div>
+
+  <div class="dict-footer">
+    <a href="https://tamil-dictionary-production.up.railway.app/docs" target="_blank">API Docs</a>
+    &nbsp;•&nbsp; Open source Tamil dictionary
+  </div>
+</div>
+
+<script>
+const API = 'https://tamil-dictionary-production.up.railway.app';
+let searchTimer = null;
+let currentWordId = null;
+
+const inp     = document.getElementById('search-input');
+const clrBtn  = document.getElementById('search-clear');
+const dropdown= document.getElementById('dropdown');
+const main    = document.getElementById('main-content');
+
+// ── Search input ───────────────────────────────────────────────────────────
+inp.addEventListener('input', () => {
+  const q = inp.value.trim();
+  clrBtn.style.display = q ? 'block' : 'none';
+  clearTimeout(searchTimer);
+  if (!q) { hideDropdown(); return; }
+  searchTimer = setTimeout(() => doSearch(q), 280);
+});
+
+clrBtn.addEventListener('click', () => {
+  inp.value = ''; clrBtn.style.display = 'none';
+  hideDropdown(); showHome();
+});
+
+inp.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { inp.value=''; hideDropdown(); showHome(); }
+  if (e.key === 'Enter') {
+    const first = dropdown.querySelector('.result-item');
+    if (first) first.click();
+  }
+});
+
+async function doSearch(q) {
+  try {
+    const res = await fetch(`${API}/api/search?q=${encodeURIComponent(q)}&limit=8`);
+    const data = await res.json();
+    showDropdown(data.results || []);
+  } catch { hideDropdown(); }
+}
+
+function showDropdown(results) {
+  if (!results.length) { dropdown.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text3);font-family:var(--font-ta)">கண்டுபிடிக்கவில்லை — Not found</div>'; }
+  else {
+    dropdown.innerHTML = results.map(r => `
+      <div class="result-item" onclick="loadWord('${r.id}')">
+        <div>
+          <div class="result-headword">${r.headword}</div>
+          ${r.transliteration ? `<div class="result-translit">${r.transliteration}</div>` : ''}
+          ${r.pos_tamil ? `<div class="result-pos">${r.pos_tamil}</div>` : ''}
+        </div>
+        <div class="result-def">${r.first_english_def || r.first_tamil_def || ''}</div>
+      </div>`).join('');
+  }
+  dropdown.style.display = 'block';
+}
+
+function hideDropdown() { dropdown.style.display = 'none'; }
+
+// ── Quick chip search ─────────────────────────────────────────────────────
+async function searchWord(hw) {
+  inp.value = hw;
+  clrBtn.style.display = 'block';
+  hideDropdown();
+  main.innerHTML = '<div class="loading"><div class="spinner"></div><br><span style="font-family:var(--font-ta)">தேடுகிறது…</span></div>';
+  try {
+    const res = await fetch(`${API}/api/search?q=${encodeURIComponent(hw)}&limit=1`);
+    const data = await res.json();
+    if (data.results?.length) loadWord(data.results[0].id);
+    else main.innerHTML = `<div class="loading" style="color:var(--text2)">கண்டுபிடிக்கவில்லை</div>`;
+  } catch { main.innerHTML = `<div class="loading">Error loading word</div>`; }
+}
+
+// ── Load word detail ──────────────────────────────────────────────────────
+async function loadWord(id) {
+  currentWordId = id;
+  hideDropdown();
+  main.innerHTML = '<div class="loading"><div class="spinner"></div><br><span style="font-family:var(--font-ta)">ஏற்றுகிறது…</span></div>';
+  try {
+    const [wRes] = await Promise.all([
+      fetch(`${API}/api/words/${encodeURIComponent(id)}`).then(r => r.json()),
+    ]);
+    renderWord(wRes);
+  } catch { main.innerHTML = `<div class="loading">Failed to load word.</div>`; }
+}
+
+function renderWord(w) {
+  const sensesHtml = (w.senses || []).map((s, i) => `
+    <div class="sense-block">
+      <span class="sense-num">${i+1}</span>
+      ${s.definitions_en?.map(d => `<div class="def-en">${d}</div>`).join('') || ''}
+      ${s.definitions_ta?.map(d => `<div class="def-ta">${d}</div>`).join('') || ''}
+      ${s.synonyms?.length ? `
+        <div class="section-title">Synonyms / இணைச்சொற்கள்</div>
+        <div class="pill-group">${s.synonyms.map(x=>`<span class="pill">${x}</span>`).join('')}</div>` : ''}
+      ${s.examples?.length ? `
+        <div class="section-title">Examples / எடுத்துக்காட்டு</div>
+        ${s.examples.map(e=>`
+          <div class="example-block">
+            <div class="example-ta">${e.tamil}</div>
+            ${e.english?`<div class="example-en">${e.english}</div>`:''}
+          </div>`).join('')}` : ''}
+      ${s.quotations?.length ? `
+        <div class="section-title">Classical quotations / செய்யுள்</div>
+        ${s.quotations.map(q=>`
+          <div class="quotation-block">
+            <div class="quotation-ta">${q.text}</div>
+            <div class="quotation-src">${[q.source,q.chapter&&'Ch.'+q.chapter,q.verse&&'v.'+q.verse,q.century].filter(Boolean).join(' · ')}</div>
+          </div>`).join('')}` : ''}
+    </div>`).join('');
+
+  const morphHtml = w.morphological_forms?.length ? `
+    <div style="margin-top:16px">
+      <div class="section-title">Morphological forms / வடிவங்கள்</div>
+      <table class="morph-table">
+        ${w.morphological_forms.map(f=>`<tr><td>${f.form_type.replace(/_/g,' ')}</td><td>${f.form}</td></tr>`).join('')}
+      </table>
+    </div>` : '';
+
+  const etymHtml = w.etymologies?.length ? `
+    <div style="margin-top:16px">
+      <div class="section-title">Etymology / சொற்பிறப்பியல்</div>
+      ${w.etymologies.map(e=>`<div class="def-en">${e.etymology}</div>`).join('')}
+    </div>` : '';
+
+  main.innerHTML = `
+    <div class="word-card">
+      <div class="word-card-top">
+        <div>
+          <div class="word-headword">${w.headword}</div>
+          ${w.transliteration?`<div class="word-translit">${w.transliteration}</div>`:''}
+          ${w.pos_tamil?`<div class="word-pos">${w.pos_tamil}</div>`:''}
+        </div>
+        <button class="back-btn" onclick="showHome()">← Back</button>
+      </div>
+      ${sensesHtml}
+      ${morphHtml}
+      ${etymHtml}
+    </div>`;
+}
+
+function showHome() {
+  main.innerHTML = `
+    <div class="quick-words" id="quick-words">
+      <div style="width:100%;text-align:center;color:var(--text3);font-size:.82rem;margin-bottom:6px">
+        Popular words / பிரபலமான சொற்கள்
+      </div>
+      <button class="chip" onclick="searchWord('அன்பு')">அன்பு</button>
+      <button class="chip" onclick="searchWord('கடல்')">கடல்</button>
+      <button class="chip" onclick="searchWord('தமிழ்')">தமிழ்</button>
+      <button class="chip" onclick="searchWord('அறம்')">அறம்</button>
+      <button class="chip" onclick="searchWord('பால்')">பால்</button>
+      <button class="chip" onclick="searchWord('வீடு')">வீடு</button>
+    </div>`;
+  inp.value = ''; clrBtn.style.display = 'none';
+}
+</script>
+</body>
+</html>

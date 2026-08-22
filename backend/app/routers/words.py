@@ -71,7 +71,7 @@ async def _get_senses(db: AsyncSession, word_id: str) -> list[SenseDetail]:
     senses_q = (await db.execute(
         select(Sense).where(Sense.word_id == word_id, Sense.status == "published")
         .order_by(Sense.sense_number)
-    )).scalars().all()
+    )).unique().scalars().all()
 
     result = []
     for sense in senses_q:
@@ -93,10 +93,10 @@ async def _get_senses(db: AsyncSession, word_id: str) -> list[SenseDetail]:
         )).scalars().all()
         sources = (await db.execute(
             select(SenseSource).where(SenseSource.sense_id == sense.id)
-        )).scalars().all()
+        )).unique().scalars().all()
         quotations = (await db.execute(
             select(Quotation).where(Quotation.sense_id == sense.id)
-        )).scalars().all()
+        )).unique().scalars().all()
 
         result.append(SenseDetail(
             id=sense.id,
