@@ -168,16 +168,9 @@ async def _ingest_csv_task():
             batch_defs = []
             words_inserted = 0
             words_processed = 0
+            from app.database import engine
             
-            from sqlalchemy.ext.asyncio import create_async_engine
-            from app.config import settings
-            db_url = settings.database_url
-            if db_url.startswith("postgresql://"):
-                db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
-            
-            isolated_engine = create_async_engine(db_url, echo=False)
-            
-            async with isolated_engine.connect() as conn:
+            async with engine.connect() as conn:
                 for row in reader:
                     words_processed += 1
                     word_id = f"TA-EXT-{uuid.uuid5(uuid.NAMESPACE_URL, row['word'])}"
@@ -259,8 +252,6 @@ async def _ingest_csv_task():
         logger.error(f"Ingestion failed: {err_str}")
         ingestion_state.error = err_str
     finally:
-        if 'isolated_engine' in locals():
-            await isolated_engine.dispose()
         ingestion_state.is_running = False
 
 
