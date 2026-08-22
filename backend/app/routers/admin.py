@@ -212,7 +212,7 @@ async def _ingest_csv_task():
                             "sort_order": 1
                         })
                     
-                    if len(batch_words) >= 5000:
+                    if len(batch_words) >= 1000:
                         await session.execute(insert(Word).values(batch_words).on_conflict_do_nothing(index_elements=["id"]))
                         await session.execute(insert(Sense).values(batch_senses).on_conflict_do_nothing(index_elements=["id"]))
                         if batch_defs:
