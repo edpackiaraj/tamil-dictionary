@@ -170,7 +170,9 @@ async def _ingest_csv_task():
             words_processed = 0
             from app.database import engine
             
+            logger.info("Attempting to connect to database for ingestion...")
             async with engine.connect() as conn:
+                logger.info("Connected to database successfully! Starting batch processing...")
                 for row in reader:
                     words_processed += 1
                     word_id = f"TA-EXT-{uuid.uuid5(uuid.NAMESPACE_URL, row['word'])}"
