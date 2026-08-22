@@ -60,7 +60,7 @@ class Word(Base):
 
 class Sense(Base):
     __tablename__ = "senses"
-    id:                Mapped[int]           = mapped_column(Integer, primary_key=True)
+    id:                Mapped[str]           = mapped_column(String, primary_key=True)
     word_id:           Mapped[str]           = mapped_column(String, ForeignKey("words.id", ondelete="CASCADE"))
     sense_number:      Mapped[int]           = mapped_column(Integer)
     part_of_speech_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("parts_of_speech.id"))
@@ -83,7 +83,7 @@ class Sense(Base):
 class Definition(Base):
     __tablename__ = "definitions"
     id:         Mapped[int] = mapped_column(Integer, primary_key=True)
-    sense_id:   Mapped[int] = mapped_column(Integer, ForeignKey("senses.id", ondelete="CASCADE"))
+    sense_id:   Mapped[str] = mapped_column(String, ForeignKey("senses.id", ondelete="CASCADE"))
     language:   Mapped[str] = mapped_column(String(2))
     definition: Mapped[str] = mapped_column(Text)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
@@ -94,7 +94,7 @@ class Definition(Base):
 class Example(Base):
     __tablename__ = "examples"
     id:              Mapped[int]           = mapped_column(Integer, primary_key=True)
-    sense_id:        Mapped[int]           = mapped_column(Integer, ForeignKey("senses.id", ondelete="CASCADE"))
+    sense_id:        Mapped[str]           = mapped_column(String, ForeignKey("senses.id", ondelete="CASCADE"))
     example_tamil:   Mapped[str]           = mapped_column(Text)
     example_english: Mapped[Optional[str]] = mapped_column(Text)
     source_work_id:  Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("source_works.id"))
@@ -105,7 +105,7 @@ class Example(Base):
 class Synonym(Base):
     __tablename__ = "synonyms"
     id:          Mapped[int]           = mapped_column(Integer, primary_key=True)
-    sense_id:    Mapped[int]           = mapped_column(Integer, ForeignKey("senses.id", ondelete="CASCADE"))
+    sense_id:    Mapped[str]           = mapped_column(String, ForeignKey("senses.id", ondelete="CASCADE"))
     synonym:     Mapped[str]           = mapped_column(Text)
     word_id_ref: Mapped[Optional[str]] = mapped_column(String, ForeignKey("words.id"))
     sort_order:  Mapped[int]           = mapped_column(Integer, default=0)
@@ -114,7 +114,7 @@ class Synonym(Base):
 class Antonym(Base):
     __tablename__ = "antonyms"
     id:          Mapped[int]           = mapped_column(Integer, primary_key=True)
-    sense_id:    Mapped[int]           = mapped_column(Integer, ForeignKey("senses.id", ondelete="CASCADE"))
+    sense_id:    Mapped[str]           = mapped_column(String, ForeignKey("senses.id", ondelete="CASCADE"))
     antonym:     Mapped[str]           = mapped_column(Text)
     word_id_ref: Mapped[Optional[str]] = mapped_column(String, ForeignKey("words.id"))
     sort_order:  Mapped[int]           = mapped_column(Integer, default=0)
@@ -168,7 +168,7 @@ class SourceWork(Base):
 class SenseSource(Base):
     __tablename__ = "sense_sources"
     id:             Mapped[int]           = mapped_column(Integer, primary_key=True)
-    sense_id:       Mapped[int]           = mapped_column(Integer, ForeignKey("senses.id", ondelete="CASCADE"))
+    sense_id:       Mapped[str]           = mapped_column(String, ForeignKey("senses.id", ondelete="CASCADE"))
     source_work_id: Mapped[int]           = mapped_column(Integer, ForeignKey("source_works.id"))
     page_ref:       Mapped[Optional[str]] = mapped_column(Text)
     quote:          Mapped[Optional[str]] = mapped_column(Text)
@@ -178,7 +178,7 @@ class SenseSource(Base):
 class Quotation(Base):
     __tablename__ = "quotations"
     id:                        Mapped[int]           = mapped_column(Integer, primary_key=True)
-    sense_id:                  Mapped[int]           = mapped_column(Integer, ForeignKey("senses.id", ondelete="CASCADE"))
+    sense_id:                  Mapped[str]           = mapped_column(String, ForeignKey("senses.id", ondelete="CASCADE"))
     quotation_tamil:           Mapped[str]           = mapped_column(Text)
     quotation_transliteration: Mapped[Optional[str]] = mapped_column(Text)
     source_work_id:            Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("source_works.id"))
@@ -206,7 +206,7 @@ class Contribution(Base):
     __tablename__ = "contributions"
     id:             Mapped[uuid.UUID]  = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     word_id:        Mapped[Optional[str]]  = mapped_column(String, ForeignKey("words.id"))
-    sense_id:       Mapped[Optional[int]]  = mapped_column(Integer, ForeignKey("senses.id"))
+    sense_id:       Mapped[Optional[str]]  = mapped_column(String, ForeignKey("senses.id"))
     contributor_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     type:           Mapped[str]         = mapped_column(String)
     content:        Mapped[str]         = mapped_column(Text)

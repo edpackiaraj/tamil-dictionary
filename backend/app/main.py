@@ -96,7 +96,9 @@ async def _seed(conn):
     # ── Senses ────────────────────────────────────────────────────────────────
     # அன்பு — 2 senses
     await conn.execute(text("""
-        INSERT INTO senses (word_id, sense_number, status) VALUES
+        INSERT INTO senses (id, word_id, sense_number, status)
+        SELECT 'SENSE-' || word_id || '-' || sense_number, word_id, sense_number, status
+        FROM (VALUES
         ('TA-000001',1,'published'),('TA-000001',2,'published'),
         ('TA-000003',1,'published'),('TA-000003',2,'published'),
         ('TA-000006',1,'published'),
@@ -114,6 +116,7 @@ async def _seed(conn):
         ('TA-000021',1,'published'),('TA-000022',1,'published'),
         ('TA-000023',1,'published'),('TA-000024',1,'published'),
         ('TA-000025',1,'published')
+        ) AS v(word_id, sense_number, status)
         ON CONFLICT (word_id, sense_number) DO NOTHING
     """))
 
@@ -267,8 +270,9 @@ async def lifespan(app: FastAPI):
         from app.database import Base
 
         async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
             await conn.run_sync(Base.metadata.create_all)
-            logger.info("Tables created / verified via SQLAlchemy.")
+            logger.info("Tables recreated / verified via SQLAlchemy.")
             count = (await conn.execute(text("SELECT COUNT(*) FROM parts_of_speech"))).scalar()
 
         if count == 0:
