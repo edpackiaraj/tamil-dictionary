@@ -141,17 +141,18 @@ async def _ingest_csv_task():
     from sqlalchemy.dialects.postgresql import insert
     
     global ingestion_state
-    if ingestion_state.is_running:
-        logger.warning("Ingestion is already running.")
-        return
 
-    ingestion_state.is_running = True
+    # The lock was already acquired by start_ingestion, which set is_running = True.
+    # We do NOT return here!
+    
     ingestion_state.total_processed = 0
     ingestion_state.total_inserted = 0
     ingestion_state.error = None
     ingestion_state.completed = False
     
-    csv_path = os.path.join("data", "tamil_dictionary_full.csv.gz")
+    # Use absolute path relative to this router file (backend/app/routers/admin.py)
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    csv_path = os.path.join(base_dir, "data", "tamil_dictionary_full.csv.gz")
     if not os.path.exists(csv_path):
         err = f"CSV not found at {csv_path}"
         logger.error(err)
