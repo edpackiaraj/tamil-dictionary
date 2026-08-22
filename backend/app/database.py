@@ -13,13 +13,13 @@ if db_url.startswith("postgresql://"):
     db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 logger.info(f"Connecting to database using URL: {db_url}")
 
-# Engine with pool_pre_ping
+from sqlalchemy.pool import NullPool
+
+# Engine with NullPool for robust connectivity
 engine = create_async_engine(
     db_url,
     echo=False,
-    pool_size=10,
-    max_overflow=20,
-    pool_pre_ping=True,
+    poolclass=NullPool,
 )
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
