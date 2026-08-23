@@ -270,7 +270,7 @@ async def lifespan(app: FastAPI):
         from app.database import Base
 
         async with engine.begin() as conn:
-            # await conn.run_sync(Base.metadata.drop_all)  # Removed for safety
+            await conn.run_sync(Base.metadata.drop_all)
             await conn.run_sync(Base.metadata.create_all)
             logger.info("Tables recreated / verified via SQLAlchemy.")
             count = (await conn.execute(text("SELECT COUNT(*) FROM parts_of_speech"))).scalar()
