@@ -8,6 +8,7 @@ from sqlalchemy import (
     String, Text, Integer, Boolean, DateTime, ForeignKey,
     UniqueConstraint, ARRAY, Index
 )
+from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
@@ -46,8 +47,8 @@ class Word(Base):
     is_compound:         Mapped[bool]          = mapped_column(Boolean, default=False)
     is_proper_noun:      Mapped[bool]          = mapped_column(Boolean, default=False)
     frequency_rank:      Mapped[Optional[int]] = mapped_column(Integer)
-    created_at:          Mapped[datetime]      = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
-    updated_at:          Mapped[datetime]      = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at:          Mapped[datetime]      = mapped_column(DateTime(timezone=True), default=datetime.utcnow, server_default=func.now())
+    updated_at:          Mapped[datetime]      = mapped_column(DateTime(timezone=True), default=datetime.utcnow, server_default=func.now())
     created_by:          Mapped[Optional[str]] = mapped_column(UUID(as_uuid=True))
     revision:            Mapped[int]           = mapped_column(Integer, default=1)
 
@@ -66,8 +67,8 @@ class Sense(Base):
     part_of_speech_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("parts_of_speech.id"))
     domain:            Mapped[Optional[str]] = mapped_column(Text)
     status:            Mapped[str]           = mapped_column(String, default="published")
-    created_at:        Mapped[datetime]      = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
-    updated_at:        Mapped[datetime]      = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at:        Mapped[datetime]      = mapped_column(DateTime(timezone=True), default=datetime.utcnow, server_default=func.now())
+    updated_at:        Mapped[datetime]      = mapped_column(DateTime(timezone=True), default=datetime.utcnow, server_default=func.now())
 
     __table_args__ = (UniqueConstraint("word_id", "sense_number"),)
 
@@ -200,7 +201,7 @@ class User(Base):
     password_hash:  Mapped[str]       = mapped_column(Text)
     role:           Mapped[str]       = mapped_column(String, default="contributor")
     is_active:      Mapped[bool]      = mapped_column(Boolean, default=True)
-    joined_at:      Mapped[datetime]  = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    joined_at:      Mapped[datetime]  = mapped_column(DateTime(timezone=True), default=datetime.utcnow, server_default=func.now())
     last_seen:      Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
 
@@ -221,7 +222,7 @@ class Contribution(Base):
     editor_note:    Mapped[Optional[str]] = mapped_column(Text)
     reviewed_by:    Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     reviewed_at:    Mapped[Optional[datetime]]  = mapped_column(DateTime(timezone=True))
-    submitted_at:   Mapped[datetime]    = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    submitted_at:   Mapped[datetime]    = mapped_column(DateTime(timezone=True), default=datetime.utcnow, server_default=func.now())
     helpful_count:  Mapped[int]         = mapped_column(Integer, default=0)
 
     contributor: Mapped[Optional["User"]] = relationship("User", foreign_keys=[contributor_id], lazy="joined")
@@ -236,14 +237,14 @@ class Revision(Base):
     new_value:      Mapped[Optional[dict]] = mapped_column(JSONB)
     editor_id:      Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     reason:         Mapped[Optional[str]] = mapped_column(Text)
-    created_at:     Mapped[datetime]      = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at:     Mapped[datetime]      = mapped_column(DateTime(timezone=True), default=datetime.utcnow, server_default=func.now())
 
 
 class ZeroResultSearch(Base):
     __tablename__ = "zero_result_searches"
     query:    Mapped[str]      = mapped_column(Text, primary_key=True)
     count:    Mapped[int]      = mapped_column(Integer, default=1)
-    last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, server_default=func.now())
 
 
 class WordRequest(Base):
@@ -253,7 +254,7 @@ class WordRequest(Base):
     suggested_meaning: Mapped[Optional[str]] = mapped_column(Text)
     request_count:     Mapped[int]           = mapped_column(Integer, default=1)
     status:            Mapped[str]           = mapped_column(String, default="open")
-    created_at:        Mapped[datetime]      = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at:        Mapped[datetime]      = mapped_column(DateTime(timezone=True), default=datetime.utcnow, server_default=func.now())
 
 
 class ContributionVote(Base):
@@ -262,7 +263,7 @@ class ContributionVote(Base):
     contribution_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("contributions.id", ondelete="CASCADE"))
     user_id:         Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     vote:            Mapped[str]       = mapped_column(String)   # 'helpful' | 'unhelpful' | 'needs_evidence'
-    created_at:      Mapped[datetime]  = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at:      Mapped[datetime]  = mapped_column(DateTime(timezone=True), default=datetime.utcnow, server_default=func.now())
     __table_args__ = (UniqueConstraint("contribution_id", "user_id"),)
 
 
@@ -273,7 +274,7 @@ class Report(Base):
     reporter_id:     Mapped[Optional[uuid.UUID]]  = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     reason:          Mapped[str]                  = mapped_column(Text)
     status:          Mapped[str]                  = mapped_column(String, default="open")
-    created_at:      Mapped[datetime]             = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at:      Mapped[datetime]             = mapped_column(DateTime(timezone=True), default=datetime.utcnow, server_default=func.now())
 
 
 class Discussion(Base):
@@ -284,7 +285,7 @@ class Discussion(Base):
     body:            Mapped[str]                  = mapped_column(Text)
     author_id:       Mapped[Optional[uuid.UUID]]  = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     is_closed:       Mapped[bool]                 = mapped_column(Boolean, default=False)
-    created_at:      Mapped[datetime]             = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at:      Mapped[datetime]             = mapped_column(DateTime(timezone=True), default=datetime.utcnow, server_default=func.now())
 
     replies: Mapped[List["DiscussionReply"]] = relationship("DiscussionReply", lazy="select")
 
@@ -295,4 +296,4 @@ class DiscussionReply(Base):
     discussion_id: Mapped[int]                  = mapped_column(Integer, ForeignKey("discussions.id", ondelete="CASCADE"))
     body:          Mapped[str]                  = mapped_column(Text)
     author_id:     Mapped[Optional[uuid.UUID]]  = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
-    created_at:    Mapped[datetime]             = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at:    Mapped[datetime]             = mapped_column(DateTime(timezone=True), default=datetime.utcnow, server_default=func.now())
