@@ -9,4 +9,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/ .
 
 # Railway injects $PORT at runtime; fall back to 8000 for local use
-CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
+# Use --loop asyncio to prevent uvloop DNS hanging bugs on Railway
+CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --loop asyncio
