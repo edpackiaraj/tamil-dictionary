@@ -21,7 +21,7 @@ class SearchResponse(BaseModel):
 
 
 class SenseDetail(BaseModel):
-    id: int
+    id: str
     sense_number: int
     domain: Optional[str]
     status: str
