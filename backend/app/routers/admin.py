@@ -216,7 +216,7 @@ async def _ingest_csv_task():
                             "sort_order": 1
                         })
                     
-                    if len(batch_words) >= 250:
+                    if len(batch_words) >= 5000:
                         word_stmt = insert(Word).on_conflict_do_nothing(index_elements=["id"])
                         sense_stmt = insert(Sense).on_conflict_do_nothing(index_elements=["id"])
                         def_stmt = insert(Definition).on_conflict_do_nothing(index_elements=["sense_id", "language"])
