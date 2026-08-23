@@ -15,7 +15,9 @@ router = APIRouter()
 
 @router.get("/words/{word_id}", response_model=WordDetail)
 async def get_word(word_id: str, db: AsyncSession = Depends(get_db)):
-    # Accept both word_id (TA-000001) and headword (அன்பு)
+    if word_id.startswith("SQLITE-"):
+        return await _get_word_sqlite(word_id)
+        
     if word_id.startswith("TA-"):
         word = await db.get(Word, word_id)
     else:
@@ -157,3 +159,58 @@ async def get_word_community(word_id: str, db: AsyncSession = Depends(get_db)):
         }
         for c in contributions
     ]
+
+import os
+import aiosqlite
+from app.routers.search import get_sqlite_db_path
+
+async def _get_word_sqlite(word_id: str) -> WordDetail:
+    db_path = await get_sqlite_db_path()
+    if not os.path.exists(db_path):
+        raise HTTPException(status_code=404, detail="SQLite database not found")
+        
+    try:
+        real_id = int(word_id.split("-")[1])
+    except:
+        raise HTTPException(status_code=400, detail="Invalid SQLITE ID")
+        
+    async with aiosqlite.connect(db_path) as conn:
+        cursor = await conn.execute("SELECT id, word, meaning_tamil, meaning_english, part_of_speech FROM words WHERE id = ?", (real_id,))
+        row = await cursor.fetchone()
+        
+    if not row:
+        raise HTTPException(status_code=404, detail="Word not found in SQLite")
+        
+    sense = SenseDetail(
+        id=f"SENSE-SQLITE-{row[0]}",
+        sense_number=1,
+        domain=None,
+        status="published",
+        definitions_en=[row[3]] if row[3] else [],
+        definitions_ta=[row[2]] if row[2] else [],
+        examples=[],
+        synonyms=[],
+        antonyms=[],
+        sources=[],
+        quotations=[]
+    )
+    
+    return WordDetail(
+        id=word_id,
+        headword=row[1] or "",
+        transliteration=None,
+        transliteration_iso=None,
+        pronunciation_ipa=None,
+        pronunciation_audio=None,
+        alternate_spellings=[],
+        pos_tamil=None,
+        pos_english=row[4],
+        lexical_status="published",
+        is_compound=False,
+        senses=[sense],
+        morphological_forms=[],
+        etymologies=[],
+        community_count=0,
+        revision=1,
+        updated_at=None
+    )

@@ -7,6 +7,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY backend/ .
+RUN python build_sqlite.py
 
 # Railway injects $PORT at runtime; fall back to 8000 for local use
 # Use --loop asyncio to prevent uvloop DNS hanging bugs on Railway

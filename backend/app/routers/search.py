@@ -16,6 +16,16 @@ def is_tamil(q: str) -> bool:
     return any("\u0B80" <= c <= "\u0BFF" for c in q)
 
 
+import os
+import aiosqlite
+
+async def get_sqlite_db_path():
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    # Look in root or in data/
+    path1 = os.path.join(base_dir, "tamil_dictionary.db")
+    path2 = os.path.join(base_dir, "data", "tamil_dictionary.db")
+    return path2 if os.path.exists(path2) else path1
+
 @router.get("/search", response_model=SearchResponse)
 async def search(
     q: str = Query(..., min_length=1, max_length=200),
@@ -32,10 +42,47 @@ async def search(
     else:
         results = await _search_mixed(db, q, limit, offset)
 
+    # Fallback to massive SQLite database
+    if len(results) < limit:
+        sqlite_results = await _search_sqlite(q, limit - len(results), offset)
+        results.extend(sqlite_results)
+
     if not results:
         await _track_zero_result(db, q)
 
     return SearchResponse(query=q, total=len(results), results=results)
+
+async def _search_sqlite(q: str, limit: int, offset: int) -> list[SearchResultItem]:
+    db_path = await get_sqlite_db_path()
+    if not os.path.exists(db_path):
+        return []
+    
+    results = []
+    try:
+        async with aiosqlite.connect(db_path) as conn:
+            # Query the flat table
+            if is_tamil(q):
+                query = "SELECT id, word, meaning_tamil, meaning_english, part_of_speech FROM words WHERE word LIKE ? LIMIT ? OFFSET ?"
+                cursor = await conn.execute(query, (f"%{q}%", limit, offset))
+            else:
+                query = "SELECT id, word, meaning_tamil, meaning_english, part_of_speech FROM words WHERE meaning_english LIKE ? LIMIT ? OFFSET ?"
+                cursor = await conn.execute(query, (f"%{q}%", limit, offset))
+            
+            rows = await cursor.fetchall()
+            for row in rows:
+                results.append(SearchResultItem(
+                    id=f"SQLITE-{row[0]}",
+                    headword=row[1] or "",
+                    transliteration=None,
+                    pos_tamil=None,
+                    pos_english=row[4],
+                    first_english_def=row[3],
+                    first_tamil_def=row[2],
+                    sense_count=1
+                ))
+    except Exception as e:
+        print(f"SQLite search error: {e}")
+    return results
 
 
 async def _search_tamil(db: AsyncSession, q: str, limit: int, offset: int):
