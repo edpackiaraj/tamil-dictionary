@@ -1,4 +1,8 @@
-@router.get("/debug/db-url")
+from fastapi import APIRouter
+
+router = APIRouter()
+
+@router.get("/db-url")
 async def debug_db_url():
     from app.config import settings
     url = settings.database_url
