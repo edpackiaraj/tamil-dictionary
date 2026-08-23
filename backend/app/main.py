@@ -210,8 +210,8 @@ async def _seed(conn):
 
     # ── Examples ──────────────────────────────────────────────────────────────
     await conn.execute(text("""
-        INSERT INTO examples (sense_id, example_tamil, example_english, sort_order)
-        SELECT s.id, ex.ta, ex.en, ex.ord
+        INSERT INTO examples (sense_id, example_tamil, example_english, sort_order, verified)
+        SELECT s.id, ex.ta, ex.en, ex.ord, false
         FROM senses s JOIN words w ON w.id = s.word_id
         JOIN (VALUES
             ('TA-000001',1,'அன்பே சிவம்','Love is God',1),
@@ -234,8 +234,8 @@ async def _seed(conn):
 
     # ── Quotations ────────────────────────────────────────────────────────────
     await conn.execute(text("""
-        INSERT INTO quotations (sense_id, quotation_tamil, source_work_id, verse, century)
-        SELECT s.id, q.text, q.src, q.verse, q.century
+        INSERT INTO quotations (sense_id, quotation_tamil, source_work_id, verse, century, verified)
+        SELECT s.id, q.text, q.src, q.verse, q.century, false
         FROM senses s JOIN words w ON w.id = s.word_id
         JOIN (VALUES
             ('TA-000006',1,'யாதும் ஊரே யாவரும் கேளிர்',2,'192','2nd BCE'),
